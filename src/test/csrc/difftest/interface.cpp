@@ -16,6 +16,15 @@
 
 #include "interface.h"
 
+#include <cstdio>
+FILE *f_fp_reg_state;
+FILE *f_int_reg_state;
+FILE *f_csr_state;
+FILE *f_fp_writeback;
+FILE *f_int_writeback;
+FILE *f_commit;
+FILE *f_trap;
+
 extern "C" int v_difftest_init() {
   return difftest_init();
 }
@@ -30,6 +39,12 @@ extern "C" int v_difftest_step() {
 INTERFACE_TRAP_EVENT {
   RETURN_NO_NULL
   auto packet = difftest[coreid]->get_trap_event();
+  if (valid) {
+    if (!f_trap) f_trap = fopen("f_trap.log", "w");
+    fprintf(f_trap, "code %x pc %lx cycleCnt %lx instrCnt %lx hasWFI %x\n",
+      code, pc, cycleCnt, instrCnt, hasWFI
+    );
+  }
   packet->valid    = valid;
   packet->code     = code;
   packet->pc       = pc;
@@ -41,6 +56,12 @@ INTERFACE_TRAP_EVENT {
 INTERFACE_BASIC_TRAP_EVENT {
   RETURN_NO_NULL
   auto packet = difftest[coreid]->get_trap_event();
+  if (valid) {
+    if (!f_trap) f_trap = fopen("f_trap.log", "w");
+    fprintf(f_trap, "cycleCnt %lx instrCnt %lx hasWFI %x\n",
+      cycleCnt, instrCnt, hasWFI
+    );
+  }
   packet->valid    = valid;
   packet->cycleCnt = cycleCnt;
   packet->instrCnt = instrCnt;
@@ -59,6 +80,12 @@ INTERFACE_ARCH_EVENT {
 INTERFACE_BASIC_INSTR_COMMIT {
   RETURN_NO_NULL
   auto packet = difftest[coreid]->get_instr_commit(index);
+  if (valid) {
+    if (!f_commit) f_commit = fopen("f_commit.log", "w");
+    fprintf(f_commit, "skip %x isRVC %x special %x rfwen %x fpwen %x wpdest %x, wdest %x\n",
+      skip, isRVC, special, rfwen, fpwen, wpdest, wdest
+    );
+  }
   packet->valid    = valid;
   if (packet->valid) {
     packet->skip     = skip;
@@ -74,6 +101,12 @@ INTERFACE_BASIC_INSTR_COMMIT {
 INTERFACE_INSTR_COMMIT {
   RETURN_NO_NULL
   auto packet = difftest[coreid]->get_instr_commit(index);
+  if (valid) {
+    if (!f_commit) f_commit = fopen("f_commit.log", "w");
+    fprintf(f_commit, "pc %lx instr %x skip %x isRVC %x special %x rfwen %x fpwen %x wpdest %x, wdest %x\n",
+      pc, instr, skip, isRVC, special, rfwen, fpwen, wpdest, wdest
+    );
+  }
   packet->valid    = valid;
   if (packet->valid) {
     packet->pc       = pc;
@@ -91,6 +124,29 @@ INTERFACE_INSTR_COMMIT {
 INTERFACE_CSR_STATE {
   RETURN_NO_NULL
   auto packet = difftest[coreid]->get_csr_state();
+  int diff = 0;
+  diff += packet->priviledgeMode != priviledgeMode;
+  diff += packet->mstatus != mstatus;
+  diff += packet->sstatus != sstatus;
+  diff += packet->mepc != mepc;
+  diff += packet->sepc != sepc;
+  diff += packet->mtval != mtval;
+  diff += packet->stval != stval;
+  diff += packet->mtvec != mtvec;
+  diff += packet->stvec != stvec;
+  diff += packet->mcause != mcause;
+  diff += packet->scause != scause;
+  diff += packet->satp != satp;
+  diff += packet->mip != mip;
+  diff += packet->mie != mie;
+  diff += packet->mscratch != mscratch;
+  diff += packet->sscratch != sscratch;
+  diff += packet->mideleg != mideleg;
+  diff += packet->medeleg != medeleg;
+  if (diff) {
+    if (!f_csr_state) f_csr_state = fopen("f_csr_state.log", "w");
+    fprintf(f_csr_state, "diff = %d\n", diff);
+  }
   packet->priviledgeMode = priviledgeMode;
   packet->mstatus = mstatus;
   packet->sstatus = sstatus;
@@ -125,6 +181,12 @@ INTERFACE_INT_WRITEBACK {
   RETURN_NO_NULL
   auto packet = difftest[coreid]->get_physical_reg_state();
   if (valid) {
+    if (!f_int_writeback) f_int_writeback = fopen("f_int_writeback.log", "w");
+    fprintf(f_int_writeback, "dest %x data %lx\n",
+      dest, data
+    );
+  }
+  if (valid) {
     packet->gpr[dest] = data;
   }
 }
@@ -132,6 +194,43 @@ INTERFACE_INT_WRITEBACK {
 INTERFACE_INT_REG_STATE {
   RETURN_NO_NULL
   auto packet = difftest[coreid]->get_arch_reg_state();
+  int diff = 0;
+  diff += packet->gpr[ 0] != gpr_0;
+  diff += packet->gpr[ 1] != gpr_1;
+  diff += packet->gpr[ 2] != gpr_2;
+  diff += packet->gpr[ 3] != gpr_3;
+  diff += packet->gpr[ 4] != gpr_4;
+  diff += packet->gpr[ 5] != gpr_5;
+  diff += packet->gpr[ 6] != gpr_6;
+  diff += packet->gpr[ 7] != gpr_7;
+  diff += packet->gpr[ 8] != gpr_8;
+  diff += packet->gpr[ 9] != gpr_9;
+  diff += packet->gpr[10] != gpr_10;
+  diff += packet->gpr[11] != gpr_11;
+  diff += packet->gpr[12] != gpr_12;
+  diff += packet->gpr[13] != gpr_13;
+  diff += packet->gpr[14] != gpr_14;
+  diff += packet->gpr[15] != gpr_15;
+  diff += packet->gpr[16] != gpr_16;
+  diff += packet->gpr[17] != gpr_17;
+  diff += packet->gpr[18] != gpr_18;
+  diff += packet->gpr[19] != gpr_19;
+  diff += packet->gpr[20] != gpr_20;
+  diff += packet->gpr[21] != gpr_21;
+  diff += packet->gpr[22] != gpr_22;
+  diff += packet->gpr[23] != gpr_23;
+  diff += packet->gpr[24] != gpr_24;
+  diff += packet->gpr[25] != gpr_25;
+  diff += packet->gpr[26] != gpr_26;
+  diff += packet->gpr[27] != gpr_27;
+  diff += packet->gpr[28] != gpr_28;
+  diff += packet->gpr[29] != gpr_29;
+  diff += packet->gpr[30] != gpr_30;
+  diff += packet->gpr[31] != gpr_31;
+  if (diff) {
+    if (!f_int_reg_state) f_int_reg_state = fopen("f_int_reg_state.log", "w");
+    fprintf(f_int_reg_state, "diff = %d\n", diff);
+  }
   packet->gpr[ 0] = gpr_0;
   packet->gpr[ 1] = gpr_1;
   packet->gpr[ 2] = gpr_2;
@@ -170,6 +269,12 @@ INTERFACE_FP_WRITEBACK {
   RETURN_NO_NULL
   auto packet = difftest[coreid]->get_physical_reg_state();
   if (valid) {
+    if (!f_fp_writeback) f_fp_writeback = fopen("f_fp_writeback.log", "w");
+    fprintf(f_fp_writeback, "dest %x data %lx\n",
+      dest, data
+    );
+  }
+  if (valid) {
     packet->fpr[dest] = data;
   }
 }
@@ -177,6 +282,43 @@ INTERFACE_FP_WRITEBACK {
 INTERFACE_FP_REG_STATE {
   RETURN_NO_NULL
   auto packet = difftest[coreid]->get_arch_reg_state();
+  int diff = 0;
+  diff += packet->fpr[ 0] != fpr_0;
+  diff += packet->fpr[ 1] != fpr_1;
+  diff += packet->fpr[ 2] != fpr_2;
+  diff += packet->fpr[ 3] != fpr_3;
+  diff += packet->fpr[ 4] != fpr_4;
+  diff += packet->fpr[ 5] != fpr_5;
+  diff += packet->fpr[ 6] != fpr_6;
+  diff += packet->fpr[ 7] != fpr_7;
+  diff += packet->fpr[ 8] != fpr_8;
+  diff += packet->fpr[ 9] != fpr_9;
+  diff += packet->fpr[10] != fpr_10;
+  diff += packet->fpr[11] != fpr_11;
+  diff += packet->fpr[12] != fpr_12;
+  diff += packet->fpr[13] != fpr_13;
+  diff += packet->fpr[14] != fpr_14;
+  diff += packet->fpr[15] != fpr_15;
+  diff += packet->fpr[16] != fpr_16;
+  diff += packet->fpr[17] != fpr_17;
+  diff += packet->fpr[18] != fpr_18;
+  diff += packet->fpr[19] != fpr_19;
+  diff += packet->fpr[20] != fpr_20;
+  diff += packet->fpr[21] != fpr_21;
+  diff += packet->fpr[22] != fpr_22;
+  diff += packet->fpr[23] != fpr_23;
+  diff += packet->fpr[24] != fpr_24;
+  diff += packet->fpr[25] != fpr_25;
+  diff += packet->fpr[26] != fpr_26;
+  diff += packet->fpr[27] != fpr_27;
+  diff += packet->fpr[28] != fpr_28;
+  diff += packet->fpr[29] != fpr_29;
+  diff += packet->fpr[30] != fpr_30;
+  diff += packet->fpr[31] != fpr_31;
+  if (diff) {
+    if (!f_fp_reg_state) f_fp_reg_state = fopen("f_fp_reg_state.log", "w");
+    fprintf(f_fp_reg_state, "diff = %d\n", diff);
+  }
   packet->fpr[ 0] = fpr_0;
   packet->fpr[ 1] = fpr_1;
   packet->fpr[ 2] = fpr_2;
